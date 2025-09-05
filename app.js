@@ -29,19 +29,11 @@ window.onload = () => {
     const passwordInput = document.getElementById('password');
     const sectorSelect = document.getElementById('sector');
     const loginError = document.getElementById('loginError');
-
     const logoutBtn = document.getElementById('logoutBtn');
     const chatBox = document.getElementById('chatBox');
     const messageInput = document.getElementById('messageInput');
     const sendMessageBtn = document.getElementById('sendMessageBtn');
     const fileBtn = document.getElementById('fileBtn');
-
-    const scheduleMeetingForm = document.getElementById('meetingForm');
-    const meetingSectorSelect = document.getElementById('meetingSector');
-    const meetingDateTimeInput = document.getElementById('meetingDateTime');
-    const meetingTopicInput = document.getElementById('meetingTopic');
-    const scheduleMeetingDiv = document.getElementById('scheduleMeeting');
-
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.style.display = "none";
@@ -55,13 +47,11 @@ window.onload = () => {
 
         if (PASSWORDS[sector] === password) {
             currentSector = sector;
-            currentChat = "geral";
             loginScreen.style.display = "none";
             mainScreen.style.display = "block";
             userSectorDisplay.textContent = sector;
             loadChat();
-            subscribeChat();
-            loadMeetings();
+            subscribeChat(currentChat);
         } else {
             loginError.style.display = "block";
         }
@@ -81,37 +71,28 @@ window.onload = () => {
         tab.addEventListener("click", () => {
             currentChat = tab.id.replace('Tab','').toLowerCase();
             loadChat();
-            scheduleMeetingDiv.style.display = currentChat === "reunioes" ? "block" : "none";
-
-            if (tab.dataset.newMessage === "true") {
-                tab.style.backgroundColor = "";
-                tab.dataset.newMessage = "";
-            }
+            subscribeChat(currentChat);
         });
     });
 
-    // ------------------------ FUNÇÃO ADICIONAR MENSAGEM ------------------------
-    function addMessageToChat(msg, scroll = true) {
+    // ------------------------ ADICIONAR MENSAGEM ------------------------
+    function addMessageToChat(msg) {
         const div = document.createElement("div");
         div.classList.add("message");
         div.innerHTML = msg.file_url
             ? `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: <a href="${msg.file_url}" target="_blank">📎 ${msg.text}</a>`
             : `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: ${msg.text}`;
         chatBox.appendChild(div);
-
-        // Rolagem inteligente
-        if (scroll) {
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // ------------------------ CARREGAR CHAT ------------------------
+    // ------------------------ CARREGAR HISTÓRICO DE CHAT ------------------------
     async function loadChat() {
         chatBox.innerHTML = "";
 
         let { data: msgs, error } = await supabase.from("mensagens")
             .select("*")
-            .eq("sector", currentChat.toLowerCase())
+            .eq("sector", currentChat)
             .order("time", { ascending: true });
 
         if (error) {
@@ -119,26 +100,16 @@ window.onload = () => {
             msgs = [];
         }
 
-        msgs = msgs || [];
-
-        if (msgs.length === 0) {
-            const div = document.createElement("div");
-            div.classList.add("message");
-            div.innerHTML = "Não há mensagens para este setor.";
-            chatBox.appendChild(div);
-        }
-
-        msgs.forEach(msg => addMessageToChat(msg, false));
-        chatBox.scrollTop = chatBox.scrollHeight;
+        msgs.forEach(msg => addMessageToChat(msg));
     }
 
-    // ------------------------ ENVIO DE MENSAGENS ------------------------
+    // ------------------------ ENVIAR MENSAGEM ------------------------
     sendMessageBtn.addEventListener("click", async () => {
         const text = messageInput.value.trim();
         if (!text) return;
 
         const newMsg = {
-            sector: currentChat.toLowerCase(),
+            sector: currentChat,
             sender: currentSector,
             text,
             time: new Date().toISOString()
@@ -164,7 +135,7 @@ window.onload = () => {
         const { data: publicUrl } = supabase.storage.from("arquivos").getPublicUrl(filePath);
 
         const newFileMsg = {
-            sector: currentChat.toLowerCase(),
+            sector: currentChat,
             sender: currentSector,
             text: file.name,
             file_url: publicUrl.publicUrl,
@@ -177,60 +148,18 @@ window.onload = () => {
         addMessageToChat(data[0]);
     });
 
-    // ------------------------ REALTIME ------------------------
-    function subscribeChat() {
+    // ------------------------ REALTIME COM NOTIFICAÇÕES ------------------------
+    function subscribeChat(sector) {
         if (chatSubscription) supabase.removeSubscription(chatSubscription);
 
         chatSubscription = supabase
-            .from('mensagens') // Sem filtro de setor
+            .from(`mensagens:sector=eq.${sector}`)
             .on('INSERT', payload => {
                 const msg = payload.new;
-
-                // Só adiciona mensagem do setor atual
-                if (msg.sector.toLowerCase() === currentChat) {
-                    const atBottom = chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 20;
-                    addMessageToChat(msg, atBottom);
-                }
-
-                // Notificação em aba de outro setor
-                if (msg.sector.toLowerCase() !== currentChat) {
-                    const tabBtn = document.getElementById(`${msg.sector}Tab`);
-                    if (tabBtn) {
-                        tabBtn.style.backgroundColor = "#fffa65";
-                        tabBtn.dataset.newMessage = "true";
-                    }
+                if (msg.sector === currentChat) {
+                    addMessageToChat(msg);
                 }
             })
             .subscribe();
     }
-
-    // ------------------------ REUNIÕES ------------------------
-    scheduleMeetingForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await supabase.from("reunioes").insert([{
-            sector: meetingSectorSelect.value.toLowerCase(),
-            date_time: meetingDateTimeInput.value,
-            topic: meetingTopicInput.value
-        }]);
-        meetingDateTimeInput.value = "";
-        meetingTopicInput.value = "";
-        loadMeetings();
-    });
-
-    async function loadMeetings() {
-        const { data: meets } = await supabase.from("reunioes")
-            .select("*")
-            .order("date_time", { ascending: true });
-
-        const meetingsList = document.createElement("ul");
-        meets.forEach(meeting => {
-            const li = document.createElement("li");
-            li.textContent = `📅 ${new Date(meeting.date_time).toLocaleString()} - Setor: ${meeting.sector} - Assunto: ${meeting.topic}`;
-            meetingsList.appendChild(li);
-        });
-
-        scheduleMeetingDiv.innerHTML = "<h3>Reuniões</h3>";
-        scheduleMeetingDiv.appendChild(meetingsList);
-        scheduleMeetingDiv.appendChild(scheduleMeetingForm);
-    }
-}
+};
