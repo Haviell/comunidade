@@ -217,7 +217,21 @@ async function loadMeetings() {
     meetingsList.appendChild(li);
   });
 
+  //teste
+async function testSupabaseConnection() {
+  const { data, error } = await supabase.from("mensagens").select("*").limit(1);
+  if (error) {
+    console.error("Erro ao acessar mensagens:", error);
+  } else {
+    console.log("Conexão ok, encontrou mensagens:", data);
+  }
+}
+
+testSupabaseConnection();
+
+  
   scheduleMeetingDiv.innerHTML = "<h3>Reuniões</h3>";
   scheduleMeetingDiv.appendChild(meetingsList);
   scheduleMeetingDiv.appendChild(scheduleMeetingForm);
 }
+
