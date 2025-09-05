@@ -82,7 +82,6 @@ window.onload = () => {
             subscribeChat(currentChat);
             scheduleMeetingDiv.style.display = currentChat === "reunioes" ? "block" : "none";
 
-            // Resetar notificação se havia nova mensagem
             if (tab.dataset.newMessage === "true") {
                 tab.style.backgroundColor = "";
                 tab.dataset.newMessage = "";
@@ -90,19 +89,36 @@ window.onload = () => {
         });
     });
 
+    // ------------------------ FUNÇÃO PARA ADICIONAR MENSAGEM AO CHAT ------------------------
+    function addMessageToChat(msg) {
+        const div = document.createElement("div");
+        div.classList.add("message");
+        div.innerHTML = msg.file_url
+            ? `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: <a href="${msg.file_url}" target="_blank">📎 ${msg.text}</a>`
+            : `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: ${msg.text}`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
     // ------------------------ CHAT ------------------------
     sendMessageBtn.addEventListener("click", async () => {
         const text = messageInput.value.trim();
         if (!text) return;
 
-        // Inserir mensagem no Supabase
-        await supabase.from("mensagens").insert([{
+        // Inserir mensagem no Supabase e retornar dados da mensagem
+        const { data, error } = await supabase.from("mensagens").insert([{
             sector: currentChat,
             sender: currentSector,
             text
-        }]);
+        }]).select();
 
-        messageInput.value = "";  // Limpar campo de entrada
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        messageInput.value = "";  // Limpar campo
+        addMessageToChat(data[0]); // Mostrar a mensagem no chat imediatamente
     });
 
     // Upload de arquivos
@@ -113,36 +129,37 @@ window.onload = () => {
 
         const filePath = `${currentChat}/${Date.now()}-${file.name}`;
 
-        let { data, error } = await supabase.storage.from("arquivos").upload(filePath, file);
-        if (error) return console.error(error);
+        const { data: uploadData, error: uploadError } = await supabase.storage.from("arquivos").upload(filePath, file);
+        if (uploadError) return console.error(uploadError);
 
         const { data: publicUrl } = supabase.storage.from("arquivos").getPublicUrl(filePath);
 
-        await supabase.from("mensagens").insert([{
+        const { data, error } = await supabase.from("mensagens").insert([{
             sector: currentChat,
             sender: currentSector,
             text: file.name,
             file_url: publicUrl.publicUrl
-        }]);
+        }]).select();
+
+        if (error) return console.error(error);
+
+        addMessageToChat(data[0]); // Mostrar o arquivo enviado no chat imediatamente
     });
 
     // ------------------------ CARREGAR CHAT ------------------------
     async function loadChat() {
-        chatBox.innerHTML = "";  // Limpar conteúdo anterior
+        chatBox.innerHTML = "";
 
-        // Carregar mensagens do Supabase
         let { data: msgs, error } = await supabase.from("mensagens")
             .select("*")
             .eq("sector", currentChat)
             .order("time", { ascending: true });
 
-        // Verificar erros
         if (error) {
             console.error("Erro ao carregar mensagens:", error);
             msgs = [];
         }
 
-        // Garantir que msgs não seja undefined
         msgs = msgs || [];
 
         if (msgs.length === 0) {
@@ -152,20 +169,10 @@ window.onload = () => {
             chatBox.appendChild(div);
         }
 
-        // Exibir as mensagens
-        msgs.forEach(msg => {
-            const div = document.createElement("div");
-            div.classList.add("message");
-            div.innerHTML = msg.file_url
-                ? `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: <a href="${msg.file_url}" target="_blank">📎 ${msg.text}</a>`
-                : `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: ${msg.text}`;
-            chatBox.appendChild(div);
-        });
-
-        chatBox.scrollTop = chatBox.scrollHeight;  // Ajustar a rolagem
+        msgs.forEach(msg => addMessageToChat(msg));
     }
 
-    // ------------------------ REALTIME COM NOTIFICAÇÃO ------------------------
+    // ------------------------ REALTIME ------------------------
     function subscribeChat(sector) {
         if (chatSubscription) supabase.removeSubscription(chatSubscription);
 
@@ -173,19 +180,16 @@ window.onload = () => {
             .from(`mensagens:sector=eq.${sector}`)
             .on('INSERT', payload => {
                 const msg = payload.new;
-                const div = document.createElement("div");
-                div.classList.add("message");
-                div.innerHTML = msg.file_url
-                    ? `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: <a href="${msg.file_url}" target="_blank">📎 ${msg.text}</a>`
-                    : `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: ${msg.text}`;
-                chatBox.appendChild(div);
-                chatBox.scrollTop = chatBox.scrollHeight;
 
-                // Notificação visual se não estiver na aba atual
+                // Evitar duplicar mensagem do próprio usuário
+                if (msg.sender !== currentSector) {
+                    addMessageToChat(msg);
+                }
+
                 if (currentChat !== sector) {
                     const tabBtn = document.getElementById(`${sector}Tab`);
                     if (tabBtn) {
-                        tabBtn.style.backgroundColor = "#fffa65";  // amarelo
+                        tabBtn.style.backgroundColor = "#fffa65";
                         tabBtn.dataset.newMessage = "true";
                     }
                 }
