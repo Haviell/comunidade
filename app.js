@@ -105,23 +105,22 @@ window.onload = () => {
         const text = messageInput.value.trim();
         if (!text) return;
 
-        // Inserir mensagem no Supabase e retornar dados da mensagem
-        const { data, error } = await supabase.from("mensagens").insert([{
+        const newMsg = {
             sector: currentChat,
             sender: currentSector,
-            text
-        }]).select();
+            text,
+            time: new Date().toISOString() // timestamp local
+        };
 
-        if (error) {
-            console.error(error);
-            return;
-        }
+        const { data, error } = await supabase.from("mensagens").insert([newMsg]).select();
 
-        messageInput.value = "";  // Limpar campo
-        addMessageToChat(data[0]); // Mostrar a mensagem no chat imediatamente
+        messageInput.value = "";
+
+        const msgToShow = (data && data[0]) ? data[0] : newMsg;
+        addMessageToChat(msgToShow);
     });
 
-    // Upload de arquivos
+    // ------------------------ UPLOAD DE ARQUIVOS ------------------------
     fileBtn.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", async () => {
         const file = fileInput.files[0];
@@ -134,16 +133,18 @@ window.onload = () => {
 
         const { data: publicUrl } = supabase.storage.from("arquivos").getPublicUrl(filePath);
 
-        const { data, error } = await supabase.from("mensagens").insert([{
+        const newFileMsg = {
             sector: currentChat,
             sender: currentSector,
             text: file.name,
-            file_url: publicUrl.publicUrl
-        }]).select();
+            file_url: publicUrl.publicUrl,
+            time: new Date().toISOString()
+        };
 
-        if (error) return console.error(error);
+        const { data, error } = await supabase.from("mensagens").insert([newFileMsg]).select();
 
-        addMessageToChat(data[0]); // Mostrar o arquivo enviado no chat imediatamente
+        const msgToShow = (data && data[0]) ? data[0] : newFileMsg;
+        addMessageToChat(msgToShow);
     });
 
     // ------------------------ CARREGAR CHAT ------------------------
@@ -181,7 +182,7 @@ window.onload = () => {
             .on('INSERT', payload => {
                 const msg = payload.new;
 
-                // Evitar duplicar mensagem do próprio usuário
+                // Evita duplicar a mensagem do próprio usuário
                 if (msg.sender !== currentSector) {
                     addMessageToChat(msg);
                 }
