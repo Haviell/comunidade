@@ -102,7 +102,7 @@ window.onload = () => {
             text
         }]);
 
-        messageInput.value = "";
+        messageInput.value = "";  // Limpar campo de entrada
     });
 
     // Upload de arquivos
@@ -128,7 +128,7 @@ window.onload = () => {
 
     // ------------------------ CARREGAR CHAT ------------------------
     async function loadChat() {
-        chatBox.innerHTML = "";
+        chatBox.innerHTML = "";  // Limpar conteúdo anterior
 
         // Carregar mensagens do Supabase
         let { data: msgs, error } = await supabase.from("mensagens")
@@ -152,7 +152,7 @@ window.onload = () => {
             chatBox.appendChild(div);
         }
 
-        // Exibir mensagens
+        // Exibir as mensagens
         msgs.forEach(msg => {
             const div = document.createElement("div");
             div.classList.add("message");
@@ -162,7 +162,7 @@ window.onload = () => {
             chatBox.appendChild(div);
         });
 
-        chatBox.scrollTop = chatBox.scrollHeight;
+        chatBox.scrollTop = chatBox.scrollHeight;  // Ajustar a rolagem
     }
 
     // ------------------------ REALTIME COM NOTIFICAÇÃO ------------------------
@@ -185,7 +185,7 @@ window.onload = () => {
                 if (currentChat !== sector) {
                     const tabBtn = document.getElementById(`${sector}Tab`);
                     if (tabBtn) {
-                        tabBtn.style.backgroundColor = "#fffa65"; // amarelo
+                        tabBtn.style.backgroundColor = "#fffa65";  // amarelo
                         tabBtn.dataset.newMessage = "true";
                     }
                 }
