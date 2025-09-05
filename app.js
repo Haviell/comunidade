@@ -1,4 +1,11 @@
-// Senhas dos setores (para autenticação simples)
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// ------------------------ SUPABASE ------------------------
+const SUPABASE_URL = "https://geaazglkznbkhthutxmb.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlYWF6Z2xrem5ia2h0aHV0eG1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwODgyODYsImV4cCI6MjA3MjY2NDI4Nn0.5sIwkiKYscsJ8vPGiRnb2rp6X5uOoKzB_7aDGyAQd_E";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ------------------------ SENHAS ------------------------
 const PASSWORDS = {
   MKT: "mkt123",
   Vendas: "vendas123",
@@ -8,21 +15,12 @@ const PASSWORDS = {
   Contabilidade: "cont123"
 };
 
-// Variáveis globais
+// ------------------------ VARIÁVEIS ------------------------
 let currentSector = null;
 let currentChat = "geral";
-let chats = {
-  geral: [],
-  MKT: [],
-  Vendas: [],
-  "T.I": [],
-  RH: [],
-  Logistica: [],
-  Contabilidade: []
-};
-let meetings = [];
+let chatSubscription = null;
 
-// Tela de login
+// ------------------------ ELEMENTOS ------------------------
 const loginScreen = document.getElementById('loginScreen');
 const mainScreen = document.getElementById('mainScreen');
 const userSectorDisplay = document.getElementById('userSector');
@@ -31,106 +29,182 @@ const passwordInput = document.getElementById('password');
 const sectorSelect = document.getElementById('sector');
 const loginError = document.getElementById('loginError');
 
-// Tela principal
 const logoutBtn = document.getElementById('logoutBtn');
 const chatBox = document.getElementById('chatBox');
 const messageInput = document.getElementById('messageInput');
 const sendMessageBtn = document.getElementById('sendMessageBtn');
+const fileBtn = document.getElementById('fileBtn');
+
 const scheduleMeetingForm = document.getElementById('meetingForm');
 const meetingSectorSelect = document.getElementById('meetingSector');
 const meetingDateTimeInput = document.getElementById('meetingDateTime');
 const meetingTopicInput = document.getElementById('meetingTopic');
 const scheduleMeetingDiv = document.getElementById('scheduleMeeting');
 
-// Função de login
-loginForm.addEventListener('submit', function(e) {
+const fileInput = document.createElement("input");
+fileInput.type = "file";
+fileInput.style.display = "none";
+document.body.appendChild(fileInput);
+
+// ------------------------ LOGIN ------------------------
+loginForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const password = passwordInput.value;
   const sector = sectorSelect.value;
+  const password = passwordInput.value;
 
   if (PASSWORDS[sector] === password) {
-      currentSector = sector;
-      loginScreen.style.display = 'none';
-      mainScreen.style.display = 'block';
-      userSectorDisplay.textContent = sector;
-      passwordInput.value = '';
-      loadChat();
+    currentSector = sector;
+    loginScreen.style.display = "none";
+    mainScreen.style.display = "block";
+    userSectorDisplay.textContent = sector;
+    loadChat();
+    subscribeChat(currentChat);
+    loadMeetings();
   } else {
-      loginError.style.display = 'block';
+    loginError.style.display = "block";
   }
 });
 
-// Função de logout
-logoutBtn.addEventListener('click', function() {
+// ------------------------ LOGOUT ------------------------
+logoutBtn.addEventListener("click", () => {
   currentSector = null;
-  loginScreen.style.display = 'block';
-  mainScreen.style.display = 'none';
+  loginScreen.style.display = "block";
+  mainScreen.style.display = "none";
+  if (chatSubscription) supabase.removeSubscription(chatSubscription);
 });
 
-// Enviar mensagem
-sendMessageBtn.addEventListener('click', function() {
-  const messageText = messageInput.value.trim();
-  if (messageText) {
-      const message = {
-          sender: currentSector,
-          text: messageText,
-          time: new Date().toLocaleTimeString()
-      };
-      chats[currentChat].push(message);
-      messageInput.value = '';
-      loadChat();
-  }
-});
-
-// Alterar aba do chat
+// ------------------------ ABAS ------------------------
 document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', function() {
-      currentChat = tab.id.replace('Tab', '');
-      loadChat();
+  tab.addEventListener("click", () => {
+    currentChat = tab.id.replace('Tab','');
+    loadChat();
+    subscribeChat(currentChat);
+    scheduleMeetingDiv.style.display = currentChat === "reunioes" ? "block" : "none";
+
+    // Resetar notificação se havia nova mensagem
+    if (tab.dataset.newMessage === "true") {
+      tab.style.backgroundColor = "";
+      tab.dataset.newMessage = "";
+    }
   });
 });
 
-// Carregar o chat
-function loadChat() {
-  chatBox.innerHTML = '';
-  chats[currentChat].forEach(msg => {
-      const msgElement = document.createElement('div');
-      msgElement.classList.add('message');
-      msgElement.textContent = `[${msg.time}] ${msg.sender}: ${msg.text}`;
-      chatBox.appendChild(msgElement);
+// ------------------------ CHAT ------------------------
+sendMessageBtn.addEventListener("click", async () => {
+  const text = messageInput.value.trim();
+  if (!text) return;
+
+  await supabase.from("mensagens").insert([{
+    sector: currentChat,
+    sender: currentSector,
+    text
+  }]);
+
+  messageInput.value = "";
+});
+
+// Upload de arquivos
+fileBtn.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const filePath = `${currentChat}/${Date.now()}-${file.name}`;
+
+  let { data, error } = await supabase.storage.from("arquivos").upload(filePath, file);
+  if (error) return console.error(error);
+
+  const { data: publicUrl } = supabase.storage.from("arquivos").getPublicUrl(filePath);
+
+  await supabase.from("mensagens").insert([{
+    sector: currentChat,
+    sender: currentSector,
+    text: file.name,
+    file_url: publicUrl.publicUrl
+  }]);
+});
+
+// ------------------------ CARREGAR CHAT ------------------------
+async function loadChat() {
+  chatBox.innerHTML = "";
+  let { data: msgs, error } = await supabase.from("mensagens")
+    .select("*")
+    .eq("sector", currentChat)
+    .order("time", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    msgs = [];
+  }
+
+  msgs = msgs || [];
+
+  msgs.forEach(msg => {
+    const div = document.createElement("div");
+    div.classList.add("message");
+    div.innerHTML = msg.file_url
+      ? `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: <a href="${msg.file_url}" target="_blank">📎 ${msg.text}</a>`
+      : `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: ${msg.text}`;
+    chatBox.appendChild(div);
   });
+
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Agendar reunião
-scheduleMeetingForm.addEventListener('submit', function(e) {
-  e.preventDefault();
-  const meetingSector = meetingSectorSelect.value;
-  const dateTime = meetingDateTimeInput.value;
-  const topic = meetingTopicInput.value;
+// ------------------------ REALTIME COM NOTIFICAÇÃO ------------------------
+function subscribeChat(sector) {
+  if (chatSubscription) supabase.removeSubscription(chatSubscription);
 
-  if (dateTime && topic) {
-      const meeting = {
-          id: Date.now(),
-          sector: meetingSector,
-          dateTime: dateTime,
-          topic: topic
-      };
-      meetings.push(meeting);
-      meetingDateTimeInput.value = '';
-      meetingTopicInput.value = '';
-      loadMeetings();
-  }
+  chatSubscription = supabase
+    .from(`mensagens:sector=eq.${sector}`)
+    .on('INSERT', payload => {
+      const msg = payload.new;
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.innerHTML = msg.file_url
+        ? `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: <a href="${msg.file_url}" target="_blank">📎 ${msg.text}</a>`
+        : `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: ${msg.text}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Notificação visual se não estiver na aba atual
+      if (currentChat !== sector) {
+        const tabBtn = document.getElementById(`${sector}Tab`);
+        if (tabBtn) {
+          tabBtn.style.backgroundColor = "#fffa65"; // amarelo
+          tabBtn.dataset.newMessage = "true";
+        }
+      }
+    })
+    .subscribe();
+}
+
+// ------------------------ REUNIÕES ------------------------
+scheduleMeetingForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  await supabase.from("reunioes").insert([{
+    sector: meetingSectorSelect.value,
+    date_time: meetingDateTimeInput.value,
+    topic: meetingTopicInput.value
+  }]);
+  meetingDateTimeInput.value = "";
+  meetingTopicInput.value = "";
+  loadMeetings();
 });
 
-// Carregar reuniões
-function loadMeetings() {
-  scheduleMeetingDiv.style.display = 'block';
-  const meetingsList = document.createElement('ul');
-  meetings.forEach(meeting => {
-      const meetingItem = document.createElement('li');
-      meetingItem.textContent = `Setor: ${meeting.sector}, Data: ${meeting.dateTime}, Assunto: ${meeting.topic}`;
-      meetingsList.appendChild(meetingItem);
+async function loadMeetings() {
+  const { data: meets } = await supabase.from("reunioes")
+    .select("*")
+    .order("date_time", { ascending: true });
+
+  const meetingsList = document.createElement("ul");
+  meets.forEach(meeting => {
+    const li = document.createElement("li");
+    li.textContent = `📅 ${new Date(meeting.date_time).toLocaleString()} - Setor: ${meeting.sector} - Assunto: ${meeting.topic}`;
+    meetingsList.appendChild(li);
   });
+
+  scheduleMeetingDiv.innerHTML = "<h3>Reuniões</h3>";
   scheduleMeetingDiv.appendChild(meetingsList);
+  scheduleMeetingDiv.appendChild(scheduleMeetingForm);
 }
