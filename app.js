@@ -94,6 +94,7 @@ sendMessageBtn.addEventListener("click", async () => {
   const text = messageInput.value.trim();
   if (!text) return;
 
+  // Inserir mensagem no Supabase
   await supabase.from("mensagens").insert([{
     sector: currentChat,
     sender: currentSector,
@@ -127,18 +128,30 @@ fileInput.addEventListener("change", async () => {
 // ------------------------ CARREGAR CHAT ------------------------
 async function loadChat() {
   chatBox.innerHTML = "";
+
+  // Carregar mensagens do Supabase
   let { data: msgs, error } = await supabase.from("mensagens")
     .select("*")
     .eq("sector", currentChat)
     .order("time", { ascending: true });
 
+  // Verificar erros
   if (error) {
-    console.error(error);
+    console.error("Erro ao carregar mensagens:", error);
     msgs = [];
   }
 
+  // Garantir que msgs não seja undefined
   msgs = msgs || [];
 
+  if (msgs.length === 0) {
+    const div = document.createElement("div");
+    div.classList.add("message");
+    div.innerHTML = "Não há mensagens para este setor.";
+    chatBox.appendChild(div);
+  }
+
+  // Exibir mensagens
   msgs.forEach(msg => {
     const div = document.createElement("div");
     div.classList.add("message");
