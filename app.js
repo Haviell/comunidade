@@ -55,11 +55,12 @@ window.onload = () => {
 
         if (PASSWORDS[sector] === password) {
             currentSector = sector;
+            currentChat = "geral"; // padrão ao logar
             loginScreen.style.display = "none";
             mainScreen.style.display = "block";
             userSectorDisplay.textContent = sector;
             loadChat();
-            subscribeChat(currentChat);
+            subscribeChat();
             loadMeetings();
         } else {
             loginError.style.display = "block";
@@ -72,6 +73,7 @@ window.onload = () => {
         loginScreen.style.display = "block";
         mainScreen.style.display = "none";
         if (chatSubscription) supabase.removeSubscription(chatSubscription);
+        chatBox.innerHTML = "";
     });
 
     // ------------------------ ABAS ------------------------
@@ -79,7 +81,6 @@ window.onload = () => {
         tab.addEventListener("click", () => {
             currentChat = tab.id.replace('Tab','').toLowerCase();
             loadChat();
-            subscribeChat(currentChat);
             scheduleMeetingDiv.style.display = currentChat === "reunioes" ? "block" : "none";
 
             if (tab.dataset.newMessage === "true") {
@@ -89,7 +90,7 @@ window.onload = () => {
         });
     });
 
-    // ------------------------ FUNÇÃO PARA ADICIONAR MENSAGEM AO CHAT ------------------------
+    // ------------------------ FUNÇÃO PARA ADICIONAR MENSAGEM ------------------------
     function addMessageToChat(msg) {
         const div = document.createElement("div");
         div.classList.add("message");
@@ -106,13 +107,12 @@ window.onload = () => {
         if (!text) return;
 
         const newMsg = {
-            sector: currentChat,
+            sector: currentChat.toLowerCase(),
             sender: currentSector,
             text,
             time: new Date().toISOString()
         };
 
-        // Salva no Supabase
         const { data, error } = await supabase.from("mensagens").insert([newMsg]).select();
         if (error) return console.error(error);
 
@@ -127,14 +127,13 @@ window.onload = () => {
         if (!file) return;
 
         const filePath = `${currentChat}/${Date.now()}-${file.name}`;
-
         const { data: uploadData, error: uploadError } = await supabase.storage.from("arquivos").upload(filePath, file);
         if (uploadError) return console.error(uploadError);
 
         const { data: publicUrl } = supabase.storage.from("arquivos").getPublicUrl(filePath);
 
         const newFileMsg = {
-            sector: currentChat,
+            sector: currentChat.toLowerCase(),
             sender: currentSector,
             text: file.name,
             file_url: publicUrl.publicUrl,
@@ -153,7 +152,7 @@ window.onload = () => {
 
         let { data: msgs, error } = await supabase.from("mensagens")
             .select("*")
-            .eq("sector", currentChat)
+            .eq("sector", currentChat.toLowerCase())
             .order("time", { ascending: true });
 
         if (error) {
@@ -174,21 +173,22 @@ window.onload = () => {
     }
 
     // ------------------------ REALTIME ------------------------
-    function subscribeChat(sector) {
+    function subscribeChat() {
         if (chatSubscription) supabase.removeSubscription(chatSubscription);
 
         chatSubscription = supabase
-            .from(`mensagens:sector=eq.${sector}`)
+            .from('mensagens') // Sem filtro
             .on('INSERT', payload => {
                 const msg = payload.new;
 
-                // Só mostra mensagem de outros usuários para evitar duplicar
-                if (msg.sender !== currentSector) {
+                // Mostra mensagem apenas se for do setor atual
+                if (msg.sector.toLowerCase() === currentChat) {
                     addMessageToChat(msg);
                 }
 
-                if (currentChat !== sector) {
-                    const tabBtn = document.getElementById(`${sector}Tab`);
+                // Se mensagem for de outro setor, alerta na aba
+                if (msg.sector.toLowerCase() !== currentChat) {
+                    const tabBtn = document.getElementById(`${msg.sector}Tab`);
                     if (tabBtn) {
                         tabBtn.style.backgroundColor = "#fffa65";
                         tabBtn.dataset.newMessage = "true";
@@ -202,7 +202,7 @@ window.onload = () => {
     scheduleMeetingForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         await supabase.from("reunioes").insert([{
-            sector: meetingSectorSelect.value,
+            sector: meetingSectorSelect.value.toLowerCase(),
             date_time: meetingDateTimeInput.value,
             topic: meetingTopicInput.value
         }]);
