@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comunicação Interna</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Tela de Login -->
+        <div id="loginScreen" class="screen">
+            <h2>Login - Comunicação Interna</h2>
+            <form id="loginForm">
+                <label for="sector">Setor:</label>
+                <select id="sector" required>
+                    <option value="MKT">MKT</option>
+                    <option value="Vendas">Vendas</option>
+                    <option value="T.I">T.I</option>
+                    <option value="RH">RH</option>
+                    <option value="Logistica">Logística</option>
+                    <option value="Contabilidade">Contabilidade</option>
+                </select>
+                <label for="password">Senha:</label>
+                <input type="password" id="password" required>
+                <button type="submit">Entrar</button>
+            </form>
+            <p id="loginError" style="color:red; display:none;">Senha incorreta!</p>
+        </div>
+
+        <!-- Tela Principal -->
+        <div id="mainScreen" class="screen" style="display:none;">
+            <header>
+                <h2>Comunicação Interna - Setor: <span id="userSector">MKT</span></h2>
+                <button id="logoutBtn">Sair</button>
+            </header>
+
+            <!-- Barra de navegação (Chats) -->
+            <nav>
+                <button class="tab" id="geralTab">Geral</button>
+                <button class="tab" id="mktTab">MKT</button>
+                <button class="tab" id="vendasTab">Vendas</button>
+                <button class="tab" id="tiTab">T.I</button>
+                <button class="tab" id="rhTab">RH</button>
+                <button class="tab" id="logisticaTab">Logística</button>
+                <button class="tab" id="contabilidadeTab">Contabilidade</button>
+                <button class="tab" id="reunioesTab">Reuniões</button>
+            </nav>
+
+            <!-- Área de Chat -->
+            <div id="chatContainer">
+                <div id="chatBox" class="chatBox"></div>
+                <input type="text" id="messageInput" placeholder="Digite sua mensagem..." />
+                <button id="sendMessageBtn">Enviar</button>
+            </div>
+
+            <!-- Agendar Reunião -->
+            <div id="scheduleMeeting" style="display:none;">
+                <h3>Agendar Reunião</h3>
+                <form id="meetingForm">
+                    <label for="meetingSector">Setor(s):</label>
+                    <select id="meetingSector">
+                        <option value="geral">Todos (Geral)</option>
+                        <option value="MKT">MKT</option>
+                        <option value="Vendas">Vendas</option>
+                        <option value="T.I">T.I</option>
+                        <option value="RH">RH</option>
+                        <option value="Logistica">Logística</option>
+                        <option value="Contabilidade">Contabilidade</option>
+                    </select>
+                    <label for="meetingDateTime">Data e Hora:</label>
+                    <input type="datetime-local" id="meetingDateTime" required>
+                    <label for="meetingTopic">Assunto:</label>
+                    <input type="text" id="meetingTopic" required>
+                    <button type="submit">Agendar Reunião</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

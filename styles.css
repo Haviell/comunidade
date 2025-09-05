@@ -1,0 +1,256 @@
+/* Reset de Estilo */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #e3f2fd; /* Cor de fundo mais suave e moderna */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    transition: background-color 0.3s ease-in-out;
+}
+
+/* Container principal */
+#app {
+    width: 90%;
+    max-width: 1100px;
+    background-color: #fff;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.15); /* Sombra mais intensa */
+    animation: fadeIn 1s ease-out;
+}
+
+/* Animação de Fade In */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Tela principal */
+.screen {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Estilo do cabeçalho */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #435D7D, #5C7597); /* Gradiente de cores */
+    color: white;
+    padding: 20px 30px;
+    border-bottom: 4px solid #758EB0;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+header h2 {
+    font-size: 2em;
+    font-weight: 700;
+}
+
+button {
+    cursor: pointer;
+    background-color: #193f74;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+button:hover {
+    background-color: #006aff;
+    transform: translateY(-3px); /* Levanta o botão no hover */
+}
+
+button:focus {
+    outline: none;
+}
+
+/* Navegação entre os setores */
+nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    background-color: #f4f7f9;
+    border-bottom: 2px solid #ddd;
+}
+
+.tab {
+    padding: 14px 25px;
+    background-color: #e4e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: 500;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.tab:hover {
+    background-color: #d1d9e1;
+    transform: translateY(-2px); /* Levanta as tabs */
+}
+
+/* Container de Chat */
+#chatContainer {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+    border-top: 2px solid #ddd;
+}
+
+/* Caixa de mensagens */
+.chatBox {
+    flex: 1;
+    padding: 15px;
+    background-color: #f9f9f9;
+    overflow-y: auto;
+    border-bottom: 2px solid #ddd;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+}
+
+/* Scroll customizado */
+.chatBox::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chatBox::-webkit-scrollbar-thumb {
+    background: #5C7597;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.chatBox::-webkit-scrollbar-thumb:hover {
+    background: #435D7D;
+}
+
+/* Input de mensagens */
+input {
+    padding: 12px 20px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    width: 100%;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    font-size: 1.1em;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: #5C7597;
+    box-shadow: 0 0 8px rgba(92, 117, 151, 0.5);
+}
+
+/* Botão de envio */
+#sendMessageBtn {
+    display: inline-block;
+    background-color: #5C7597;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+#sendMessageBtn:hover {
+    background-color: #435D7D;
+    transform: translateY(-2px);
+}
+
+/* Rodapé */
+footer {
+    text-align: center;
+    background-color: #f9f9f9;
+    padding: 25px;
+    font-size: 1.2em;
+    color: #777;
+    border-top: 2px solid #ddd;
+    margin-top: 25px;
+}
+
+footer a {
+    text-decoration: none;
+    color: #435D7D;
+    font-weight: 500;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    #app {
+        width: 95%;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    nav {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .tab {
+        margin: 10px 0;
+        font-size: 1.2em;
+    }
+
+    footer {
+        font-size: 1em;
+    }
+}
+
+@media (max-width: 480px) {
+    header h2 {
+        font-size: 1.6em;
+    }
+
+    button {
+        padding: 10px 18px;
+        font-size: 1em;
+    }
+
+    .tab {
+        padding: 10px 15px;
+        font-size: 1em;
+    }
+
+    input {
+        padding: 10px 15px;
+    }
+
+    footer {
+        font-size: 0.9em;
+    }
+}
