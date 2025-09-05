@@ -77,7 +77,7 @@ window.onload = () => {
     // ------------------------ ABAS ------------------------
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener("click", () => {
-            currentChat = tab.id.replace('Tab','');
+            currentChat = tab.id.replace('Tab','').toLowerCase();
             loadChat();
             subscribeChat(currentChat);
             scheduleMeetingDiv.style.display = currentChat === "reunioes" ? "block" : "none";
@@ -109,15 +109,15 @@ window.onload = () => {
             sector: currentChat,
             sender: currentSector,
             text,
-            time: new Date().toISOString() // timestamp local
+            time: new Date().toISOString()
         };
 
+        // Salva no Supabase
         const { data, error } = await supabase.from("mensagens").insert([newMsg]).select();
+        if (error) return console.error(error);
 
         messageInput.value = "";
-
-        const msgToShow = (data && data[0]) ? data[0] : newMsg;
-        addMessageToChat(msgToShow);
+        addMessageToChat(data && data[0] ? data[0] : newMsg);
     });
 
     // ------------------------ UPLOAD DE ARQUIVOS ------------------------
@@ -142,9 +142,9 @@ window.onload = () => {
         };
 
         const { data, error } = await supabase.from("mensagens").insert([newFileMsg]).select();
+        if (error) return console.error(error);
 
-        const msgToShow = (data && data[0]) ? data[0] : newFileMsg;
-        addMessageToChat(msgToShow);
+        addMessageToChat(data && data[0] ? data[0] : newFileMsg);
     });
 
     // ------------------------ CARREGAR CHAT ------------------------
@@ -182,7 +182,7 @@ window.onload = () => {
             .on('INSERT', payload => {
                 const msg = payload.new;
 
-                // Evita duplicar a mensagem do próprio usuário
+                // Só mostra mensagem de outros usuários para evitar duplicar
                 if (msg.sender !== currentSector) {
                     addMessageToChat(msg);
                 }
