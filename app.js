@@ -55,7 +55,7 @@ window.onload = () => {
 
         if (PASSWORDS[sector] === password) {
             currentSector = sector;
-            currentChat = "geral"; // padrão ao logar
+            currentChat = "geral";
             loginScreen.style.display = "none";
             mainScreen.style.display = "block";
             userSectorDisplay.textContent = sector;
@@ -90,18 +90,49 @@ window.onload = () => {
         });
     });
 
-    // ------------------------ FUNÇÃO PARA ADICIONAR MENSAGEM ------------------------
-    function addMessageToChat(msg) {
+    // ------------------------ FUNÇÃO ADICIONAR MENSAGEM ------------------------
+    function addMessageToChat(msg, scroll = true) {
         const div = document.createElement("div");
         div.classList.add("message");
         div.innerHTML = msg.file_url
             ? `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: <a href="${msg.file_url}" target="_blank">📎 ${msg.text}</a>`
             : `[${new Date(msg.time).toLocaleTimeString()}] ${msg.sender}: ${msg.text}`;
         chatBox.appendChild(div);
+
+        // Rolagem inteligente
+        if (scroll) {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    }
+
+    // ------------------------ CARREGAR CHAT ------------------------
+    async function loadChat() {
+        chatBox.innerHTML = "";
+
+        let { data: msgs, error } = await supabase.from("mensagens")
+            .select("*")
+            .eq("sector", currentChat.toLowerCase())
+            .order("time", { ascending: true });
+
+        if (error) {
+            console.error("Erro ao carregar mensagens:", error);
+            msgs = [];
+        }
+
+        msgs = msgs || [];
+
+        if (msgs.length === 0) {
+            const div = document.createElement("div");
+            div.classList.add("message");
+            div.innerHTML = "Não há mensagens para este setor.";
+            chatBox.appendChild(div);
+        }
+
+        msgs.forEach(msg => addMessageToChat(msg, false));
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // ------------------------ CHAT ------------------------
+    // ------------------------ ENVIO DE MENSAGENS ------------------------
     sendMessageBtn.addEventListener("click", async () => {
         const text = messageInput.value.trim();
         if (!text) return;
@@ -117,7 +148,7 @@ window.onload = () => {
         if (error) return console.error(error);
 
         messageInput.value = "";
-        addMessageToChat(data && data[0] ? data[0] : newMsg);
+        addMessageToChat(data[0]);
     });
 
     // ------------------------ UPLOAD DE ARQUIVOS ------------------------
@@ -143,50 +174,25 @@ window.onload = () => {
         const { data, error } = await supabase.from("mensagens").insert([newFileMsg]).select();
         if (error) return console.error(error);
 
-        addMessageToChat(data && data[0] ? data[0] : newFileMsg);
+        addMessageToChat(data[0]);
     });
-
-    // ------------------------ CARREGAR CHAT ------------------------
-    async function loadChat() {
-        chatBox.innerHTML = "";
-
-        let { data: msgs, error } = await supabase.from("mensagens")
-            .select("*")
-            .eq("sector", currentChat.toLowerCase())
-            .order("time", { ascending: true });
-
-        if (error) {
-            console.error("Erro ao carregar mensagens:", error);
-            msgs = [];
-        }
-
-        msgs = msgs || [];
-
-        if (msgs.length === 0) {
-            const div = document.createElement("div");
-            div.classList.add("message");
-            div.innerHTML = "Não há mensagens para este setor.";
-            chatBox.appendChild(div);
-        }
-
-        msgs.forEach(msg => addMessageToChat(msg));
-    }
 
     // ------------------------ REALTIME ------------------------
     function subscribeChat() {
         if (chatSubscription) supabase.removeSubscription(chatSubscription);
 
         chatSubscription = supabase
-            .from('mensagens') // Sem filtro
+            .from('mensagens') // Sem filtro de setor
             .on('INSERT', payload => {
                 const msg = payload.new;
 
-                // Mostra mensagem apenas se for do setor atual
+                // Só adiciona mensagem do setor atual
                 if (msg.sector.toLowerCase() === currentChat) {
-                    addMessageToChat(msg);
+                    const atBottom = chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 20;
+                    addMessageToChat(msg, atBottom);
                 }
 
-                // Se mensagem for de outro setor, alerta na aba
+                // Notificação em aba de outro setor
                 if (msg.sector.toLowerCase() !== currentChat) {
                     const tabBtn = document.getElementById(`${msg.sector}Tab`);
                     if (tabBtn) {
